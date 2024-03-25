@@ -1,0 +1,60 @@
+---
+- name: Configure Control Node as Certificate Authority
+  hosts: control_node
+  become: yes
+
+  vars:
+    ca_country: "US"  # Define your desired country code here
+    ca_state: "California"  # Define your desired state or province here
+    ca_location: "San Francisco"  # Define your desired city or location here
+    ca_organization: "Example Organization"  # Define your organization name here
+    ca_organizational_unit: "IT Department"  # Define your organizational unit here
+    ca_common_name: "My Certificate Authority"  # Define your desired common name here
+    ca_directory: "/etc/ssl/ca"  # Define the CA directory path here
+
+  tasks:
+    - name: Create CA directory structure
+      file:
+        path: "{{ ca_directory }}"
+        state: directory
+        mode: 0755
+
+    - name: Generate SSL CA key
+      openssl_privatekey:
+        path: "{{ ca_directory }}/ca.key"
+        size: 4096
+
+    - name: Generate Certificate Signing Request (CSR)
+      openssl_csr:
+        path: "{{ ca_directory }}/ca.csr"
+        privatekey_path: "{{ ca_directory }}/ca.key"
+        common_name: "{{ ca_common_name }}"
+        country_name: "{{ ca_country }}"
+        state_or_province_name: "{{ ca_state }}"
+        locality_name: "{{ ca_location }}"
+        organization_name: "{{ ca_organization }}"
+        organizational_unit_name: "{{ ca_organizational_unit }}"
+
+    - name: Generate SSL CA certificate
+      openssl_certificate:
+        path: "{{ ca_directory }}/ca.crt"
+        privatekey_path: "{{ ca_directory }}/ca.key"
+        csr_path: "{{ ca_directory }}/ca.csr"
+        provider: selfsigned
+        subject:
+          C: "{{ ca_country }}"
+          ST: "{{ ca_state }}"
+          L: "{{ ca_location }}"
+          O: "{{ ca_organization }}"
+          OU: "{{ ca_organizational_unit }}"
+          CN: "{{ ca_common_name }}"
+        not_after: "3650d"  # Valid for 10 years
+        state: present
+
+    - name: Copy CA certificate to appropriate location
+      copy:
+        src: "{{ ca_directory }}/ca.crt"
+        dest: "/home/ashley/Documents/Certificate/ca.crt"
+        owner: root
+        group: root
+        mode: 0644
